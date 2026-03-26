@@ -5,19 +5,20 @@ const TOPICS = ['Fruits', 'Animals', 'Countries', 'Sports', 'Food', 'Movies', 'T
 const DIFFICULTIES: Difficulty[] = ['Easy', 'Medium', 'Hard']
 
 interface Props {
+  initialPlayers?: string[]
   onBack: () => void
   onStart: (config: GameConfig) => void
 }
 
-export default function SingleDeviceSetup({ onBack, onStart }: Props) {
-  const [players, setPlayers] = useState<string[]>(['', '', ''])
+export default function SingleDeviceSetup({ initialPlayers, onBack, onStart }: Props) {
+  const [players, setPlayers] = useState<string[]>(initialPlayers && initialPlayers.length >= 3 ? initialPlayers : ['', '', ''])
   const [topic, setTopic] = useState('')
   const [difficulty, setDifficulty] = useState<Difficulty>('Medium')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const addPlayer = () => {
-    if (players.length < 10) setPlayers([...players, ''])
+    setPlayers([...players, ''])
   }
 
   const removePlayer = (i: number) => {
@@ -74,7 +75,10 @@ export default function SingleDeviceSetup({ onBack, onStart }: Props) {
         <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="flex justify-between items-center">
             <p style={{ fontFamily: 'Bebas Neue', letterSpacing: '0.05em', fontSize: '1rem' }}>PLAYERS</p>
-            <span className="text-xs text-muted">{players.length}/10</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setPlayers(p => [...p].sort(() => Math.random() - 0.5))}>🔀 Shuffle</button>
+              <span className="text-xs text-muted">{players.length} players</span>
+            </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {players.map((p, i) => (

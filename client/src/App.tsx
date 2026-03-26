@@ -7,6 +7,8 @@ import MultiplayerLobby from './pages/MultiplayerLobby'
 import MultiplayerGame from './pages/MultiplayerGame'
 import { AppPage, GameConfig, MultiplayerState } from './types'
 
+const [savedPlayers, setSavedPlayers] = useState<string[]>([])
+
 export default function App() {
   const [page, setPage] = useState<AppPage>('home')
   const [singleConfig, setSingleConfig] = useState<GameConfig | null>(null)
@@ -24,7 +26,8 @@ export default function App() {
       )}
       {page === 'single-setup' && (
         <SingleDeviceSetup
-          onBack={() => navigate('home')}
+          initialPlayers={savedPlayers}
+          onBack={() => { setSavedPlayers([]); navigate('home') }}
           onStart={(config) => { setSingleConfig(config); navigate('single-game') }}
         />
       )}
@@ -32,7 +35,7 @@ export default function App() {
         <SingleDeviceGame
           config={singleConfig}
           onBack={() => navigate('home')}
-          onPlayAgain={() => navigate('single-setup')}
+          onPlayAgain={() => { setSavedPlayers(singleConfig.players); navigate('single-setup') }}
         />
       )}
       {page === 'mp-setup' && (
