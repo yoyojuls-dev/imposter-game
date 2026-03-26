@@ -42,7 +42,7 @@ Respond ONLY with valid JSON, no markdown, no explanation: {"word":"<word>","hin
       'X-Title': 'Imposter Game',
     },
     body: JSON.stringify({
-      model: 'microsoft/phi-3-mini-128k-instruct:free',
+      model: 'openrouter/free',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 200,
     }),
