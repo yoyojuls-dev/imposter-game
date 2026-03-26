@@ -17,18 +17,19 @@ export async function generateWordAndHint(
     ? 'One unexpected surprising everyday object — NOT a food, animal, or country'
     : `One specific well-known word related to the topic "${topic}"`;
 
-  const prompt = `Game: Imposter. Topic: ${topic}. 
+  const prompt = `Game: Imposter. Topic: ${topic}.
 
-Generate a RANDOM and SURPRISING word from this topic — do NOT pick the most obvious or common word. Pick something unexpected and different every time.
+Generate a word that EVERYONE knows — common, everyday, simple vocabulary that any person regardless of age or education would instantly recognize.
 
 1. ${wordInstruction}
 2. One ${difficulty} hint (${difficultyGuide[difficulty]})
 
 Rules:
+- Must be a very well-known common word, no obscure or technical terms
 - Single noun only
 - Hint must NOT contain the word
 - Hint is ONE word only
-- Be creative, vary your answers, never repeat common choices
+- Pick a DIFFERENT word every time, avoid repeating the same common choices
 
 Output ONLY: {"word":"WORD","hint":"HINT"}`;
 
