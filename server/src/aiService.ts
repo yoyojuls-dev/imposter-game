@@ -42,7 +42,7 @@ Output ONLY this exact JSON format with no other text: {"word":"WORD","hint":"HI
       'X-Title': 'Imposter Game',
     },
     body: JSON.stringify({
-      model: 'openrouter/free',
+      model: 'nousresearch/hermes-3-llama-3.1-405b:free',
       messages: [
         { 
           role: 'system', 
