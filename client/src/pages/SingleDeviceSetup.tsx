@@ -38,7 +38,8 @@ export default function SingleDeviceSetup({ onBack, onStart }: Props) {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/generate', {
+      const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
+      const res = await fetch(`${serverUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic, difficulty }),
