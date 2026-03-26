@@ -42,7 +42,7 @@ Respond ONLY with valid JSON, no markdown, no explanation: {"word":"<word>","hin
       'X-Title': 'Imposter Game',
     },
     body: JSON.stringify({
-      model: 'google/gemma-3-4b-it:free',
+      model: 'deepseek/deepseek-r1-distill-llama-70b:free',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 200,
     }),
