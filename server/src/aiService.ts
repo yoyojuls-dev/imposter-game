@@ -12,7 +12,7 @@ export async function generateWordAndHint(
   const difficultyGuide: Record<string, string> = {
     Easy: 'very obvious and directly related to the word',
     Medium: 'somewhat vague, mentioning a characteristic but not the word itself',
-    Hard: 'very cryptic and abstract, making it hard to guess',
+    Hard: 'very cryptic and abstract word, making it hard to guess',
   };
 
   const guide = difficultyGuide[difficulty] || difficultyGuide['Medium'];
@@ -29,7 +29,7 @@ Generate:
 Rules:
 - Single common noun only
 - Hint must NOT contain the word itself
-- Hint must be a single word only, no phrases, no sentences
+- The hint MUST be exactly ONE single word. No phrases. No sentences. No punctuation. Just one word.
 
 Respond ONLY with valid JSON, no markdown, no explanation: {"word":"<word>","hint":"<hint>"}`;
 
