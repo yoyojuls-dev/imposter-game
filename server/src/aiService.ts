@@ -31,7 +31,7 @@ Rules:
 - Hint must NOT contain the word itself
 - The hint MUST be exactly ONE single word. No phrases. No sentences. No punctuation. Just one word.
 
-Respond ONLY with valid JSON, no markdown, no explanation: {"word":"<word>","hint":"<hint>"}`;
+Output ONLY this exact JSON format with no other text: {"word":"WORD","hint":"HINT"}`;
 
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
@@ -43,7 +43,13 @@ Respond ONLY with valid JSON, no markdown, no explanation: {"word":"<word>","hin
     },
     body: JSON.stringify({
       model: 'openrouter/free',
-      messages: [{ role: 'user', content: prompt }],
+      messages: [
+        { 
+          role: 'system', 
+          content: 'You are a JSON API. You ONLY output raw JSON. Never explain, never think out loud, never add any text before or after the JSON object.' 
+        },
+        { role: 'user', content: prompt }
+      ],
       max_tokens: 200,
     }),
   });
