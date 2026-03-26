@@ -1,38 +1,16 @@
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-export async function generateWordAndHint(
-  topic: string,
-  difficulty: string
-): Promise<{ word: string; hint: string }> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY is not set. Add it to server/.env');
-  }
+const FREE_MODELS = [
+  'meta-llama/llama-3.2-3b-instruct:free',
+  'nousresearch/hermes-3-llama-3.1-405b:free',
+  'mistralai/mistral-7b-instruct:free',
+  'google/gemma-3-4b-it:free',
+  'qwen/qwen-2.5-7b-instruct:free',
+  'huggingfaceh4/zephyr-7b-beta:free',
+  'openchat/openchat-7b:free',
+];
 
-  const difficultyGuide: Record<string, string> = {
-    Easy: 'very obvious and directly related to the word',
-    Medium: 'somewhat vague, mentioning a characteristic but not the word itself',
-    Hard: 'very cryptic and abstract word, making it hard to guess',
-  };
-
-  const guide = difficultyGuide[difficulty] || difficultyGuide['Medium'];
-
-  const wordInstruction = topic === 'Random 🎲'
-    ? 'One unexpected, surprising everyday object or concept — must NOT be a food, animal, or country. Be creative and pick something different every time'
-    : `One specific well-known word/item related to the topic "${topic}"`;
-
-  const prompt = `You are a game master for a party game called "Imposter".
-Generate:
-1. ${wordInstruction}
-2. One ${difficulty} difficulty hint for the imposter (${guide})
-
-Rules:
-- Single common noun only
-- Hint must NOT contain the word itself
-- The hint MUST be exactly ONE single word. No phrases. No sentences. No punctuation. Just one word.
-
-Output ONLY this exact JSON format with no other text: {"word":"WORD","hint":"HINT"}`;
-
+async function tryModel(model: string, prompt: string, apiKey: string): Promise<string> {
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
     headers: {
@@ -42,58 +20,97 @@ Output ONLY this exact JSON format with no other text: {"word":"WORD","hint":"HI
       'X-Title': 'Imposter Game',
     },
     body: JSON.stringify({
-      model: 'nousresearch/hermes-3-llama-3.1-405b:free',
+      model,
       messages: [
-        { 
-          role: 'system', 
-          content: 'You are a JSON API. You ONLY output raw JSON. Never explain, never think out loud, never add any text before or after the JSON object.' 
+        {
+          role: 'system',
+          content: 'You are a JSON API. Output ONLY raw JSON. No thinking, no explanation, no markdown.',
         },
-        { role: 'user', content: prompt }
+        { role: 'user', content: prompt },
       ],
-      max_tokens: 200,
+      max_tokens: 100,
     }),
   });
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`OpenRouter API error: ${err}`);
+    throw new Error(`${response.status}: ${err}`);
   }
 
   const data = (await response.json()) as any;
-  
-  // Handle both regular and reasoning model response formats
-  const choice = data?.choices?.[0];
-    let text = (choice?.message?.content || choice?.text || '').trim();
-    
-    // Strip out thinking/reasoning text that comes before the actual JSON
-    // Reasoning models wrap thoughts in <think>...</think> or just ramble before the JSON
-    text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-    
-    // If model is still thinking out loud, just grab everything from the first { to last }
-    const firstBrace = text.indexOf('{');
-    const lastBrace = text.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      text = text.substring(firstBrace, lastBrace + 1);
-    }
+  const text = (data?.choices?.[0]?.message?.content || '').trim();
+  return text;
+}
 
-  console.log('AI raw response:', text.substring(0, 200));
+function parseResponse(text: string): { word: string; hint: string } | null {
+  // Strip thinking tags
+  let clean = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
-  if (!text) throw new Error('Empty response from AI');
-
-  // Extract JSON from anywhere in the response
-  const jsonMatch = text.match(/\{[\s\S]*?"word"[\s\S]*?"hint"[\s\S]*?\}|\{[\s\S]*?"hint"[\s\S]*?"word"[\s\S]*?\}/);
-  if (jsonMatch) {
-    try {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (parsed.word && parsed.hint) return { word: String(parsed.word), hint: String(parsed.hint) };
-    } catch {}
+  // Extract JSON between first { and last }
+  const firstBrace = clean.indexOf('{');
+  const lastBrace = clean.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    clean = clean.substring(firstBrace, lastBrace + 1);
   }
 
-  // Fallback regex
-  const wordMatch = text.match(/"word"\s*:\s*"([^"]+)"/);
-  const hintMatch = text.match(/"hint"\s*:\s*"([^"]+)"/);
+  try {
+    const parsed = JSON.parse(clean);
+    if (parsed.word && parsed.hint) return { word: String(parsed.word), hint: String(parsed.hint) };
+  } catch {}
+
+  const wordMatch = clean.match(/"word"\s*:\s*"([^"]+)"/);
+  const hintMatch = clean.match(/"hint"\s*:\s*"([^"]+)"/);
   if (wordMatch && hintMatch) return { word: wordMatch[1], hint: hintMatch[1] };
 
-  console.error('Could not parse AI response:', text.substring(0, 300));
-  throw new Error(`Failed to parse AI response: ${text.substring(0, 100)}`);
+  return null;
+}
+
+export async function generateWordAndHint(
+  topic: string,
+  difficulty: string
+): Promise<{ word: string; hint: string }> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not set. Add it to server/.env');
+
+  const difficultyGuide: Record<string, string> = {
+    Easy: 'very obvious and directly related to the word',
+    Medium: 'somewhat vague, mentioning a characteristic but not the word itself',
+    Hard: 'very cryptic and abstract, making it hard to guess',
+  };
+
+  const wordInstruction = topic === 'Random 🎲'
+    ? 'One unexpected surprising everyday object — NOT a food, animal, or country'
+    : `One specific well-known word related to the topic "${topic}"`;
+
+  const prompt = `Game: Imposter. Generate:
+1. ${wordInstruction}
+2. One ${difficulty} hint (${difficultyGuide[difficulty]})
+
+Rules: single noun only, hint must NOT contain the word, hint is ONE word only.
+
+Output ONLY: {"word":"WORD","hint":"HINT"}`;
+
+  const errors: string[] = [];
+
+  for (const model of FREE_MODELS) {
+    try {
+      console.log(`Trying model: ${model}`);
+      const text = await tryModel(model, prompt, apiKey);
+      console.log(`Response from ${model}:`, text.substring(0, 150));
+
+      if (!text) { errors.push(`${model}: empty response`); continue; }
+
+      const result = parseResponse(text);
+      if (result) {
+        console.log(`Success with ${model}:`, result);
+        return result;
+      }
+      errors.push(`${model}: could not parse response`);
+    } catch (err: any) {
+      console.log(`Failed ${model}:`, err.message);
+      errors.push(`${model}: ${err.message}`);
+    }
+  }
+
+  throw new Error(`All models failed:\n${errors.join('\n')}`);
 }
