@@ -7,12 +7,11 @@ import MultiplayerLobby from './pages/MultiplayerLobby'
 import MultiplayerGame from './pages/MultiplayerGame'
 import { AppPage, GameConfig, MultiplayerState } from './types'
 
-const [savedPlayers, setSavedPlayers] = useState<string[]>([])
-
 export default function App() {
   const [page, setPage] = useState<AppPage>('home')
   const [singleConfig, setSingleConfig] = useState<GameConfig | null>(null)
   const [mpState, setMpState] = useState<MultiplayerState | null>(null)
+  const [savedPlayers, setSavedPlayers] = useState<string[]>([])
 
   const navigate = (p: AppPage) => setPage(p)
 
