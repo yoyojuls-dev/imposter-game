@@ -54,28 +54,34 @@ Respond ONLY with valid JSON, no markdown, no explanation: {"word":"<word>","hin
   }
 
   const data = (await response.json()) as any;
-  const text = data?.choices?.[0]?.message?.content?.trim() || '';
-  console.log('AI raw response:', text);
-  const clean = text.replace(/```json|```/g, '').trim();
+  
+  // Handle both regular and reasoning model response formats
+  const choice = data?.choices?.[0];
+  const text = (
+    choice?.message?.content ||
+    choice?.message?.reasoning ||
+    choice?.text ||
+    ''
+  ).trim();
 
-  // Try to find JSON object anywhere in the response
-  const jsonMatch = clean.match(/\{[^}]*"word"[^}]*"hint"[^}]*\}|\{[^}]*"hint"[^}]*"word"[^}]*\}/);
+  console.log('AI raw response:', text.substring(0, 200));
+
+  if (!text) throw new Error('Empty response from AI');
+
+  // Extract JSON from anywhere in the response
+  const jsonMatch = text.match(/\{[\s\S]*?"word"[\s\S]*?"hint"[\s\S]*?\}|\{[\s\S]*?"hint"[\s\S]*?"word"[\s\S]*?\}/);
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]);
-      if (parsed.word && parsed.hint) return { word: parsed.word, hint: parsed.hint };
+      if (parsed.word && parsed.hint) return { word: String(parsed.word), hint: String(parsed.hint) };
     } catch {}
   }
 
-  try {
-    const parsed = JSON.parse(clean);
-    if (parsed.word && parsed.hint) return { word: parsed.word, hint: parsed.hint };
-  } catch {}
-
-  const wordMatch = clean.match(/"word"\s*:\s*"([^"]+)"/);
-  const hintMatch = clean.match(/"hint"\s*:\s*"([^"]+)"/);
+  // Fallback regex
+  const wordMatch = text.match(/"word"\s*:\s*"([^"]+)"/);
+  const hintMatch = text.match(/"hint"\s*:\s*"([^"]+)"/);
   if (wordMatch && hintMatch) return { word: wordMatch[1], hint: hintMatch[1] };
 
-  console.error('Could not parse AI response:', clean);
-  throw new Error(`Failed to parse AI response: ${clean.substring(0, 100)}`);
+  console.error('Could not parse AI response:', text.substring(0, 300));
+  throw new Error(`Failed to parse AI response: ${text.substring(0, 100)}`);
 }
