@@ -42,7 +42,7 @@ Respond ONLY with valid JSON, no markdown, no explanation: {"word":"<word>","hin
       'X-Title': 'Imposter Game',
     },
     body: JSON.stringify({
-      model: 'meta-llama/llama-3.2-3b-instruct:free',
+      model: 'microsoft/phi-3-mini-128k-instruct:free',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 200,
     }),
