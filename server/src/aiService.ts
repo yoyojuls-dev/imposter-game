@@ -63,12 +63,18 @@ Output ONLY this exact JSON format with no other text: {"word":"WORD","hint":"HI
   
   // Handle both regular and reasoning model response formats
   const choice = data?.choices?.[0];
-  const text = (
-    choice?.message?.content ||
-    choice?.message?.reasoning ||
-    choice?.text ||
-    ''
-  ).trim();
+    let text = (choice?.message?.content || choice?.text || '').trim();
+    
+    // Strip out thinking/reasoning text that comes before the actual JSON
+    // Reasoning models wrap thoughts in <think>...</think> or just ramble before the JSON
+    text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    
+    // If model is still thinking out loud, just grab everything from the first { to last }
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      text = text.substring(firstBrace, lastBrace + 1);
+    }
 
   console.log('AI raw response:', text.substring(0, 200));
 
