@@ -1,160 +1,260 @@
-import { useState, useRef } from 'react'
-import { GameConfig, Difficulty } from '../types'
-
-const TOPICS = ['Fruits', 'Animals', 'Countries', 'Sports', 'Food', 'Movies', 'Technology', 'Music', 'Random 🎲']
-const DIFFICULTIES: Difficulty[] = ['Easy', 'Medium', 'Hard']
+import { useState } from 'react'
+import { GameConfig } from '../types'
 
 interface Props {
-  initialPlayers?: string[]
+  config: GameConfig
   onBack: () => void
-  onStart: (config: GameConfig) => void
+  onPlayAgain: () => void
 }
 
-export default function SingleDeviceSetup({ initialPlayers, onBack, onStart }: Props) {
-  const [players, setPlayers] = useState<string[]>(
-    initialPlayers && initialPlayers.length >= 3 ? initialPlayers : ['', '', '']
-  )
-  const [topic, setTopic] = useState('')
-  const [difficulty, setDifficulty] = useState<Difficulty>('Medium')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const sessionId = useRef(Math.random().toString(36).slice(2))
+type Phase = 'reveal' | 'discussion' | 'results'
 
-  const addPlayer = () => {
-    setPlayers([...players, ''])
+export default function SingleDeviceGame({ config, onBack, onPlayAgain }: Props) {
+  const [currentPlayerIdx, setCurrentPlayerIdx] = useState(0)
+  const [revealedCount, setRevealedCount] = useState(0)
+  const [isFlipped, setIsFlipped] = useState(false)
+  const [cardLocked, setCardLocked] = useState(false)
+  const [phase, setPhase] = useState<Phase>('reveal')
+  const [screenBlocked, setScreenBlocked] = useState(false)
+
+  const currentPlayer = config.players[currentPlayerIdx]
+  const isCurrentImposter = currentPlayerIdx === config.imposterId
+
+  const handleFlip = () => {
+    if (!isFlipped) setIsFlipped(true)
   }
 
-  const removePlayer = (i: number) => {
-    if (players.length <= 3) return
-    setPlayers(players.filter((_: string, idx: number) => idx !== i))
+  const handleNext = () => {
+    setScreenBlocked(true)
+    setIsFlipped(false)
+    setCardLocked(false)
+
+    setTimeout(() => {
+      const next = currentPlayerIdx + 1
+      setRevealedCount((prev: number) => prev + 1)
+      if (next >= config.players.length) {
+        setPhase('discussion')
+      } else {
+        setCurrentPlayerIdx(next)
+      }
+      setScreenBlocked(false)
+    }, 800)
   }
 
-  const updatePlayer = (i: number, val: string) => {
-    const updated = [...players]
-    updated[i] = val
-    setPlayers(updated)
+  const handleRevealImposter = () => {
+    setPhase('results')
   }
 
-  const canStart = players.every((p: string) => p.trim().length > 0) && topic !== ''
-
-  const handleStart = async () => {
-    if (!canStart) return
-    setLoading(true)
-    setError('')
-    try {
-      const serverUrl = (import.meta as any).env?.VITE_SERVER_URL || 'http://localhost:3001'
-      const res = await fetch(`${serverUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, difficulty, sessionId: sessionId.current }),
-      })
-      if (!res.ok) throw new Error('Server error')
-      const { word, hint } = await res.json()
-      const imposterId = Math.floor(Math.random() * players.length)
-      onStart({
-        players: players.map((p: string) => p.trim()),
-        topic,
-        difficulty,
-        word,
-        hint,
-        imposterId,
-      })
-    } catch (e) {
-      setError('Failed to generate word. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="page-center">
-      <div className="page-content">
-        <div className="flex items-center gap-3">
-          <button className="btn btn-ghost btn-sm" onClick={onBack}>← Back</button>
-          <h2 style={{ fontFamily: 'Bebas Neue', fontSize: '1.8rem', letterSpacing: '0.05em' }}>SINGLE DEVICE</h2>
+  if (screenBlocked) {
+    return (
+      <div className="page-center" style={{ background: 'var(--bg)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', marginBottom: 16 }}>🫣</div>
+          <p className="text-muted">Passing device...</p>
         </div>
+      </div>
+    )
+  }
 
-        {/* Players */}
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="flex justify-between items-center">
-            <p style={{ fontFamily: 'Bebas Neue', letterSpacing: '0.05em', fontSize: '1rem' }}>PLAYERS</p>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setPlayers((p: string[]) => [...p].sort(() => Math.random() - 0.5))}>🔀 Shuffle</button>
-              <span className="text-xs text-muted">{players.length} players</span>
+  if (phase === 'results') {
+    const imposterName = config.players[config.imposterId]
+    return (
+      <div className="page-center">
+        <div className="page-content" style={{ alignItems: 'center', textAlign: 'center' }}>
+          <div className="animate-reveal">
+            <div style={{ fontSize: '4rem', marginBottom: 8 }}>🎭</div>
+            <h2 style={{ fontFamily: 'Bebas Neue', fontSize: '2.5rem', letterSpacing: '0.05em', marginBottom: 8 }}>
+              THE IMPOSTER WAS...
+            </h2>
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(232,68,68,0.2), rgba(232,68,68,0.05))',
+              border: '2px solid var(--accent)',
+              borderRadius: 20,
+              padding: '24px 40px',
+              marginBottom: 24,
+            }}>
+              <p style={{ fontFamily: 'Bebas Neue', fontSize: '3rem', color: 'var(--accent)', letterSpacing: '0.05em' }}>
+                {imposterName}
+              </p>
+            </div>
+
+            <div className="panel" style={{ marginBottom: 24, textAlign: 'left', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="text-muted text-sm">Topic</span>
+                  <span className="tag tag-blue">{config.topic}</span>
+                </div>
+                <div className="divider" />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="text-muted text-sm">Secret Word</span>
+                  <span style={{ fontWeight: 700, color: 'var(--success)', fontSize: '1.1rem' }}>{config.word}</span>
+                </div>
+                <div className="divider" />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                  <span className="text-muted text-sm" style={{ flexShrink: 0 }}>Imposter's Hint</span>
+                  <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '1.1rem' }}>{config.hint}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+              <button className="btn btn-primary btn-lg btn-full" onClick={onPlayAgain}>
+                🔄 Play Again
+              </button>
+              <button className="btn btn-ghost btn-full" onClick={onBack}>
+                ← Home
+              </button>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {players.map((p: string, i: number) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <div className="player-avatar" style={{ fontSize: '0.8rem' }}>
-                  {p.trim() ? p.trim()[0].toUpperCase() : (i + 1)}
-                </div>
-                <input
-                  className="input"
-                  placeholder={`Player ${i + 1} name`}
-                  value={p}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updatePlayer(i, e.target.value)}
-                  maxLength={20}
-                />
-                {players.length > 3 && (
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    style={{ flexShrink: 0, padding: '10px 12px' }}
-                    onClick={() => removePlayer(i)}
-                  >✕</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'discussion') {
+    return (
+      <div className="page-center">
+        <div className="page-content" style={{ alignItems: 'center', textAlign: 'center' }}>
+          <div className="animate-fade">
+            <div style={{ fontSize: '3rem', marginBottom: 12 }}>💬</div>
+            <h2 style={{ fontFamily: 'Bebas Neue', fontSize: '2rem', letterSpacing: '0.05em', marginBottom: 8 }}>
+              DISCUSSION TIME
+            </h2>
+            <p className="text-muted" style={{ marginBottom: 24, maxWidth: 320 }}>
+              Everyone has seen their word. Now discuss and figure out who the imposter is!
+            </p>
+
+            <div className="panel" style={{ marginBottom: 24, textAlign: 'left' }}>
+              <p style={{ fontFamily: 'Bebas Neue', letterSpacing: '0.05em', fontSize: '0.95rem', marginBottom: 12, color: 'var(--text2)' }}>
+                PLAYERS IN GAME
+              </p>
+              <div className="player-list">
+                {config.players.map((name: string, i: number) => (
+                  <div key={i} className="player-item">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="player-avatar">{name[0].toUpperCase()}</div>
+                      <span style={{ fontWeight: 500 }}>{name}</span>
+                    </div>
+                    <span className="tag tag-red" style={{ opacity: 0.6, fontSize: '0.7rem' }}>?</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+              <button className="btn btn-primary btn-lg btn-full" onClick={handleRevealImposter}>
+                🎭 Reveal Imposter
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Card reveal phase
+  return (
+    <div className="page-center">
+      <div className="page-content" style={{ alignItems: 'center', textAlign: 'center' }}>
+
+        {/* Header */}
+        <div className="animate-fade" style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button className="btn btn-ghost btn-sm" onClick={onBack}>← Exit</button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {config.players.map((_: string, i: number) => (
+              <div key={i} style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: i < revealedCount ? 'var(--success)' : i === currentPlayerIdx ? 'var(--accent)' : 'var(--border)',
+                transition: 'background 0.3s',
+              }} />
+            ))}
+          </div>
+          <span className="tag tag-blue">{config.topic}</span>
+        </div>
+
+        <div className="animate-fade" style={{ animationDelay: '0.05s' }}>
+          <p className="text-muted text-sm">Pass device to</p>
+          <h2 style={{ fontFamily: 'Bebas Neue', fontSize: '2.5rem', letterSpacing: '0.05em', color: 'var(--text)' }}>
+            {currentPlayer.toUpperCase()}
+          </h2>
+        </div>
+
+        {/* Card */}
+        <div className="animate-fade" style={{ animationDelay: '0.1s', width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <div className="card-scene" onClick={!isFlipped ? handleFlip : undefined}>
+            <div className={`card-inner ${isFlipped ? 'flipped' : ''}`}>
+              {/* Back - tap to reveal */}
+              <div className="card-face card-back-face">
+                <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🃏</div>
+                <p style={{ fontFamily: 'Bebas Neue', fontSize: '1.4rem', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.9)' }}>
+                  TAP TO REVEAL
+                </p>
+                <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>
+                  Make sure no one else is watching
+                </p>
+              </div>
+
+              {/* Front - word or hint */}
+              <div className="card-face card-front-face">
+                {isCurrentImposter ? (
+                  <>
+                    <div style={{ marginBottom: 10 }}>
+                      <span className="tag tag-red">🎭 YOU'RE THE IMPOSTER</span>
+                    </div>
+                    <p style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', letterSpacing: '0.05em', color: 'var(--text2)', marginBottom: 10 }}>
+                      YOUR HINT WORD
+                    </p>
+                    <p style={{ fontFamily: 'Bebas Neue', fontSize: '2.8rem', letterSpacing: '0.06em', color: 'var(--accent)', textAlign: 'center' }}>
+                      {config.hint}
+                    </p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text3)', marginTop: 10 }}>
+                      Difficulty: {config.difficulty}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ marginBottom: 10 }}>
+                      <span className="tag tag-green">✓ CREWMATE</span>
+                    </div>
+                    <p style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', letterSpacing: '0.05em', color: 'var(--text2)', marginBottom: 10 }}>
+                      SECRET WORD
+                    </p>
+                    <p style={{ fontFamily: 'Bebas Neue', fontSize: '2.8rem', letterSpacing: '0.06em', color: 'var(--text)', textAlign: 'center' }}>
+                      {config.word}
+                    </p>
+                  </>
                 )}
               </div>
-            ))}
+            </div>
           </div>
-          <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addPlayer}>
-            + Add Player
-          </button>
         </div>
 
-        {/* Topic */}
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <p style={{ fontFamily: 'Bebas Neue', letterSpacing: '0.05em', fontSize: '1rem' }}>TOPIC</p>
-          <div className="chip-row">
-            {TOPICS.map(t => (
-              <button key={t} className={`chip ${topic === t ? 'selected' : ''}`} onClick={() => setTopic(t)}>
-                {t}
+        {/* Bottom action area */}
+        <div className="animate-fade" style={{ animationDelay: '0.15s', width: '100%', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+          {!isFlipped ? (
+            <p className="text-sm text-muted">
+              {currentPlayerIdx === 0
+                ? `${config.players.length} players · ${config.topic} · ${config.difficulty} hints`
+                : `Player ${currentPlayerIdx + 1} of ${config.players.length}`}
+            </p>
+          ) : !cardLocked ? (
+            <>
+              <p className="text-sm text-muted">Remember your word, then lock your card</p>
+              <button className="btn btn-secondary btn-lg btn-full" onClick={() => setCardLocked(true)}>
+                🔒 Lock Card
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Difficulty */}
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <p style={{ fontFamily: 'Bebas Neue', letterSpacing: '0.05em', fontSize: '1rem' }}>HINT DIFFICULTY</p>
-            <p className="text-xs text-muted" style={{ marginTop: 4 }}>Controls how hard the imposter's hint is to use</p>
-          </div>
-          <div className="chip-row">
-            {DIFFICULTIES.map(d => (
-              <button key={d} className={`chip ${difficulty === d ? 'selected' : ''}`} onClick={() => setDifficulty(d)}>
-                {d === 'Easy' ? '🟢' : d === 'Medium' ? '🟡' : '🔴'} {d}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {error && (
-          <div style={{ background: 'rgba(232,68,68,0.1)', border: '1px solid rgba(232,68,68,0.3)', borderRadius: 12, padding: '12px 16px' }}>
-            <p className="text-sm text-red">{error}</p>
-          </div>
-        )}
-
-        <button
-          className="btn btn-primary btn-lg btn-full"
-          disabled={!canStart || loading}
-          onClick={handleStart}
-        >
-          {loading ? (
-            <><div className="spinner" style={{ width: 20, height: 20 }} /> Generating...</>
+            </>
           ) : (
-            '🎮 Start Game'
+            <>
+              <p className="text-sm" style={{ color: 'var(--success)' }}>✓ Card locked. Pass the device.</p>
+              <button className="btn btn-primary btn-lg btn-full" onClick={handleNext}>
+                {currentPlayerIdx === config.players.length - 1
+                  ? '🚀 Start Discussion'
+                  : `Next: ${config.players[currentPlayerIdx + 1]} →`}
+              </button>
+            </>
           )}
-        </button>
+        </div>
       </div>
     </div>
   )
