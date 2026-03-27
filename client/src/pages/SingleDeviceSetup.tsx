@@ -11,12 +11,14 @@ interface Props {
 }
 
 export default function SingleDeviceSetup({ initialPlayers, onBack, onStart }: Props) {
-  const [players, setPlayers] = useState<string[]>(initialPlayers && initialPlayers.length >= 3 ? initialPlayers : ['', '', ''])
+  const [players, setPlayers] = useState<string[]>(
+    initialPlayers && initialPlayers.length >= 3 ? initialPlayers : ['', '', '']
+  )
   const [topic, setTopic] = useState('')
   const [difficulty, setDifficulty] = useState<Difficulty>('Medium')
   const [loading, setLoading] = useState(false)
-  const sessionId = useRef(Math.random().toString(36).slice(2))
   const [error, setError] = useState('')
+  const sessionId = useRef(Math.random().toString(36).slice(2))
 
   const addPlayer = () => {
     setPlayers([...players, ''])
@@ -24,7 +26,7 @@ export default function SingleDeviceSetup({ initialPlayers, onBack, onStart }: P
 
   const removePlayer = (i: number) => {
     if (players.length <= 3) return
-    setPlayers(players.filter((_, idx) => idx !== i))
+    setPlayers(players.filter((_: string, idx: number) => idx !== i))
   }
 
   const updatePlayer = (i: number, val: string) => {
@@ -33,7 +35,7 @@ export default function SingleDeviceSetup({ initialPlayers, onBack, onStart }: P
     setPlayers(updated)
   }
 
-  const canStart = players.every(p => p.trim().length > 0) && topic !== ''
+  const canStart = players.every((p: string) => p.trim().length > 0) && topic !== ''
 
   const handleStart = async () => {
     if (!canStart) return
@@ -50,7 +52,7 @@ export default function SingleDeviceSetup({ initialPlayers, onBack, onStart }: P
       const { word, hint } = await res.json()
       const imposterId = Math.floor(Math.random() * players.length)
       onStart({
-        players: players.map(p => p.trim()),
+        players: players.map((p: string) => p.trim()),
         topic,
         difficulty,
         word,
@@ -77,12 +79,12 @@ export default function SingleDeviceSetup({ initialPlayers, onBack, onStart }: P
           <div className="flex justify-between items-center">
             <p style={{ fontFamily: 'Bebas Neue', letterSpacing: '0.05em', fontSize: '1rem' }}>PLAYERS</p>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setPlayers(p => [...p].sort(() => Math.random() - 0.5))}>🔀 Shuffle</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setPlayers((p: string[]) => [...p].sort(() => Math.random() - 0.5))}>🔀 Shuffle</button>
               <span className="text-xs text-muted">{players.length} players</span>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {players.map((p, i) => (
+            {players.map((p: string, i: number) => (
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <div className="player-avatar" style={{ fontSize: '0.8rem' }}>
                   {p.trim() ? p.trim()[0].toUpperCase() : (i + 1)}
@@ -91,20 +93,22 @@ export default function SingleDeviceSetup({ initialPlayers, onBack, onStart }: P
                   className="input"
                   placeholder={`Player ${i + 1} name`}
                   value={p}
-                  onChange={e => updatePlayer(i, e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updatePlayer(i, e.target.value)}
                   maxLength={20}
                 />
                 {players.length > 3 && (
-                  <button className="btn btn-ghost btn-sm" style={{ flexShrink: 0, padding: '10px 12px' }} onClick={() => removePlayer(i)}>✕</button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    style={{ flexShrink: 0, padding: '10px 12px' }}
+                    onClick={() => removePlayer(i)}
+                  >✕</button>
                 )}
               </div>
             ))}
           </div>
-          ({
-            <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addPlayer}>
-              + Add Player
-            </button>
-          )}
+          <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addPlayer}>
+            + Add Player
+          </button>
         </div>
 
         {/* Topic */}
