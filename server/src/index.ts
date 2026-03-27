@@ -3,7 +3,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { generateWordAndHint } from './aiService';
+import { getRandomWord } from './wordBank'; // Make sure this matches the filename where you put the words!
 import { Room, Player } from './types';
 
 const app = express();
@@ -37,7 +37,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.post('/api/generate', async (req, res) => {
+app.post('/api/generate', (req, res) => {
   const { topic, difficulty, sessionId } = req.body;
   if (!topic || !difficulty) {
     return res.status(400).json({ error: 'topic and difficulty required' });
@@ -45,7 +45,9 @@ app.post('/api/generate', async (req, res) => {
   try {
     const key = `${sessionId || 'default'}:${topic}`;
     const usedWords = sessionUsedWords.get(key) || [];
-    const result = await generateWordAndHint(topic, difficulty, usedWords);
+    
+    // Pulls from your local data instantly
+    const result = getRandomWord(topic, difficulty as 'Easy' | 'Medium' | 'Hard', usedWords);
     
     // Track this word as used for this session+topic
     usedWords.push(result.word);
@@ -114,14 +116,20 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('room_updated', { room });
   });
 
-  socket.on('start_game', async ({ roomCode }: { roomCode: string }) => {
+  socket.on('start_game', ({ roomCode }: { roomCode: string }) => {
     const room = rooms.get(roomCode);
     if (!room || room.host !== socket.id) return;
     if (room.players.length < 3) { socket.emit('error', { message: 'Need at least 3 players' }); return; }
     if (!room.topic) { socket.emit('error', { message: 'Please select a topic' }); return; }
 
     try {
-      const { word, hint } = await generateWordAndHint(room.topic, room.difficulty, room.usedWords || []);
+      // Synchronously grab a word and hint from your local bank
+      const { word, hint } = getRandomWord(
+        room.topic, 
+        room.difficulty as 'Easy' | 'Medium' | 'Hard', 
+        room.usedWords || []
+      );
+      
       room.word = word;
       room.hint = hint;
       room.imposterId = pickImposter(room.players);
@@ -146,6 +154,7 @@ io.on('connection', (socket) => {
       io.to(roomCode).emit('room_updated', { room: publicRoom });
       console.log(`Game started in ${roomCode}: word="${word}"`);
     } catch (err) {
+      console.error(err);
       socket.emit('error', { message: 'Failed to generate word.' });
     }
   });
