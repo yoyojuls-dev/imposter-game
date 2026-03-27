@@ -16,4 +16,5 @@ export interface Room {
   word: string;
   hint: string;
   imposterId: string;
+  usedWords: string[];
 }

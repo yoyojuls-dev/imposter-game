@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -17,6 +18,9 @@ const io = new Server(httpServer, {
 
 const rooms = new Map<string, Room>();
 
+// Track used words per session ID + topic to avoid repeats within a session
+const sessionUsedWords = new Map<string, string[]>();
+
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -34,16 +38,29 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.post('/api/generate', async (req, res) => {
-  const { topic, difficulty } = req.body;
+  const { topic, difficulty, sessionId } = req.body;
   if (!topic || !difficulty) {
     return res.status(400).json({ error: 'topic and difficulty required' });
   }
   try {
-    const result = await generateWordAndHint(topic, difficulty);
+    const key = `${sessionId || 'default'}:${topic}`;
+    const usedWords = sessionUsedWords.get(key) || [];
+    const result = await generateWordAndHint(topic, difficulty, usedWords);
+    
+    // Track this word as used for this session+topic
+    usedWords.push(result.word);
+    sessionUsedWords.set(key, usedWords);
+    
+    // Clean up old sessions (keep map from growing forever)
+    if (sessionUsedWords.size > 1000) {
+      const firstKey = sessionUsedWords.keys().next().value;
+      if (firstKey) sessionUsedWords.delete(firstKey);
+    }
+    
     res.json(result);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'AI generation failed' });
+    res.status(500).json({ error: 'Generation failed' });
   }
 });
 
@@ -65,6 +82,7 @@ io.on('connection', (socket) => {
       word: '',
       hint: '',
       imposterId: '',
+      usedWords: [],
     };
 
     rooms.set(code, room);
@@ -103,11 +121,13 @@ io.on('connection', (socket) => {
     if (!room.topic) { socket.emit('error', { message: 'Please select a topic' }); return; }
 
     try {
-      const { word, hint } = await generateWordAndHint(room.topic, room.difficulty);
+      const { word, hint } = await generateWordAndHint(room.topic, room.difficulty, room.usedWords || []);
       room.word = word;
       room.hint = hint;
       room.imposterId = pickImposter(room.players);
       room.state = 'playing';
+      if (!room.usedWords) room.usedWords = [];
+      room.usedWords.push(word);
 
       for (const player of room.players) {
         const playerSocket = io.sockets.sockets.get(player.id);
@@ -126,7 +146,7 @@ io.on('connection', (socket) => {
       io.to(roomCode).emit('room_updated', { room: publicRoom });
       console.log(`Game started in ${roomCode}: word="${word}"`);
     } catch (err) {
-      socket.emit('error', { message: 'Failed to generate word. Check API key.' });
+      socket.emit('error', { message: 'Failed to generate word.' });
     }
   });
 
@@ -150,6 +170,7 @@ io.on('connection', (socket) => {
     room.imposterId = '';
     room.topic = '';
     room.difficulty = 'Medium';
+    // Keep usedWords to avoid repeats across rounds
     io.to(roomCode).emit('room_updated', { room });
     io.to(roomCode).emit('reset_game');
   });
@@ -158,9 +179,7 @@ io.on('connection', (socket) => {
     for (const [code, room] of rooms.entries()) {
       const idx = room.players.findIndex((p) => p.id === socket.id);
       if (idx === -1) continue;
-
       room.players.splice(idx, 1);
-
       if (room.players.length === 0) {
         rooms.delete(code);
       } else {
@@ -173,6 +192,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`Game server running on http://localhost:${PORT}`);
+httpServer.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`Game server running on port ${PORT}`);
 });
