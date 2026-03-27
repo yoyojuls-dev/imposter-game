@@ -45,6 +45,7 @@ export default function MultiplayerSetup({ onBack, onEnterLobby }: Props) {
     socket.on('error', ({ message }: { message: string }) => {
       setLoading(false)
       setError(message)
+      console.log('Socket error:', message)
     })
 
     return () => {
@@ -52,6 +53,8 @@ export default function MultiplayerSetup({ onBack, onEnterLobby }: Props) {
       socket.off('error')
     }
   }, [socket, playerName])
+
+  
 
   const handleCreate = () => {
     if (!playerName.trim()) { setError('Enter your name'); return }
@@ -65,6 +68,7 @@ export default function MultiplayerSetup({ onBack, onEnterLobby }: Props) {
     if (!roomCode.trim()) { setError('Enter a room code'); return }
     setLoading(true)
     setError('')
+    console.log('Emitting join_room:', roomCode.toUpperCase().trim())
     socket?.emit('join_room', { roomCode: roomCode.toUpperCase().trim(), playerName: playerName.trim() })
   }
 
