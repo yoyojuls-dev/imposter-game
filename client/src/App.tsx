@@ -11,7 +11,6 @@ export default function App() {
   const [page, setPage] = useState<AppPage>('home')
   const [singleConfig, setSingleConfig] = useState<GameConfig | null>(null)
   const [mpState, setMpState] = useState<MultiplayerState | null>(null)
-  const [savedPlayers, setSavedPlayers] = useState<string[]>([])
 
   const navigate = (p: AppPage) => setPage(p)
 
@@ -25,8 +24,7 @@ export default function App() {
       )}
       {page === 'single-setup' && (
         <SingleDeviceSetup
-          initialPlayers={savedPlayers}
-          onBack={() => { setSavedPlayers([]); navigate('home') }}
+          onBack={() => navigate('home')}
           onStart={(config) => { setSingleConfig(config); navigate('single-game') }}
         />
       )}
@@ -34,7 +32,7 @@ export default function App() {
         <SingleDeviceGame
           config={singleConfig}
           onBack={() => navigate('home')}
-          onPlayAgain={() => { setSavedPlayers(singleConfig.players); navigate('single-setup') }}
+          onPlayAgain={() => navigate('single-setup')}
         />
       )}
       {page === 'mp-setup' && (

@@ -173,6 +173,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`Game server running on port ${PORT}`);
+httpServer.listen(PORT, () => {
+  console.log(`Game server running on http://localhost:${PORT}`);
 });

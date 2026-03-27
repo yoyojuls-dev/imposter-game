@@ -208,14 +208,18 @@ export default function SingleDeviceGame({ config, onBack, onPlayAgain }: Props)
                     <div style={{ marginBottom: 10 }}>
                       <span className="tag tag-red">🎭 IMPOSTER</span>
                     </div>
-                    <p style={{ fontFamily: 'Bebas Neue', fontSize: '1.4rem', letterSpacing: '0.05em', color: 'var(--accent)', marginBottom: 10 }}>
-                      YOU'RE THE IMPOSTER
-                    </p>
                     <p style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', letterSpacing: '0.05em', color: 'var(--text2)', marginBottom: 10 }}>
-                      YOUR HINT WORD
+                      YOUR HINT
                     </p>
-                    <p style={{ fontFamily: 'Bebas Neue', fontSize: '2.8rem', letterSpacing: '0.06em', color: 'var(--text)', textAlign: 'center' }}>
-                      {config.hint}
+                    <p style={{
+                      fontSize: '1.05rem',
+                      fontStyle: 'italic',
+                      color: 'var(--text)',
+                      textAlign: 'center',
+                      lineHeight: 1.4,
+                      padding: '0 8px',
+                    }}>
+                      "{config.hint}"
                     </p>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text3)', marginTop: 10 }}>
                       Difficulty: {config.difficulty}

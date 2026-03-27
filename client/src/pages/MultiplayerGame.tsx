@@ -167,10 +167,8 @@ export default function MultiplayerGame({ state, onBack, onPlayAgain }: Props) {
               {isImposter ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <span className="tag tag-red" style={{ alignSelf: 'center' }}>🎭 You are the Imposter</span>
-                  <p style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', letterSpacing: '0.05em', color: 'var(--text2)', marginBottom: 10 }}>YOUR HINT</p>
-                  <p style={{ fontSize: '1rem', fontStyle: 'italic', color: 'var(--text)', textAlign: 'center', lineHeight: 1.5, padding: '0 8px' }}>
-                    "{hint}"
-                  </p>
+                  <p className="text-sm text-muted" style={{ marginTop: 6 }}>Try to blend in! Your hint was:</p>
+                  <p style={{ fontStyle: 'italic', color: 'var(--text2)' }}>"{hint}"</p>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
