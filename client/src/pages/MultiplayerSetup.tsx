@@ -22,11 +22,12 @@ export default function MultiplayerSetup({ onBack, onEnterLobby }: Props) {
 
   useEffect(() => {
     const s = io(SERVER_URL, {
-      reconnection: true,
-      reconnectionAttempts: 15,
-      reconnectionDelay: 1000,
-      timeout: 10000,
-    })
+        transports: ['websocket'],
+        reconnection: true,
+        reconnectionAttempts: 15,
+        reconnectionDelay: 1000,
+        timeout: 10000,
+      })
     s.on('connect', () => setConnected(true))
     s.on('disconnect', () => setConnected(false))
     s.on('connect_error', () => setConnected(false))
