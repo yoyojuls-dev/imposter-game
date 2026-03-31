@@ -1,0 +1,12 @@
+{
+  "install": "npm install",
+  "start": "node dist/index.js",
+  "watch": {
+    "install": {
+      "include": ["^package\\.json$"]
+    },
+    "restart": {
+      "include": ["^dist/"]
+    }
+  }
+}
