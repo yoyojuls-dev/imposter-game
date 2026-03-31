@@ -201,6 +201,14 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
+
+// Keep-alive ping to prevent Render free tier spin-down
+setInterval(async () => {
+  try {
+    await fetch(`http://localhost:${PORT}/api/health`)
+  } catch {}
+}, 14 * 60 * 1000) // ping every 14 minutes
+
 httpServer.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`Game server running on port ${PORT}`);
 });
