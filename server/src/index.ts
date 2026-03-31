@@ -1,9 +1,8 @@
-// import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { getRandomWord } from './wordBank'; // Make sure this matches the filename where you put the words!
+import { getRandomWord } from './wordBank';
 import { Room, Player } from './types';
 
 const app = express();
@@ -17,8 +16,6 @@ const io = new Server(httpServer, {
 });
 
 const rooms = new Map<string, Room>();
-
-// Track used words per session ID + topic to avoid repeats within a session
 const sessionUsedWords = new Map<string, string[]>();
 
 function generateRoomCode(): string {
@@ -45,20 +42,13 @@ app.post('/api/generate', (req, res) => {
   try {
     const key = `${sessionId || 'default'}:${topic}`;
     const usedWords = sessionUsedWords.get(key) || [];
-    
-    // Pulls from your local data instantly
     const result = getRandomWord(topic, difficulty as 'Easy' | 'Medium' | 'Hard', usedWords);
-    
-    // Track this word as used for this session+topic
     usedWords.push(result.word);
     sessionUsedWords.set(key, usedWords);
-    
-    // Clean up old sessions (keep map from growing forever)
     if (sessionUsedWords.size > 1000) {
       const firstKey = sessionUsedWords.keys().next().value;
       if (firstKey) sessionUsedWords.delete(firstKey);
     }
-    
     res.json(result);
   } catch (err) {
     console.error(err);
@@ -91,9 +81,11 @@ io.on('connection', (socket) => {
     socket.join(code);
     socket.emit('room_joined', { room, playerId: socket.id });
     console.log(`Room ${code} created by ${playerName}`);
+    console.log(`Total rooms: ${rooms.size} | Codes: [${Array.from(rooms.keys()).join(', ')}]`);
   });
 
   socket.on('join_room', ({ roomCode, playerName }: { roomCode: string; playerName: string }) => {
+    console.log(`Join attempt: "${roomCode}" | Available rooms: [${Array.from(rooms.keys()).join(', ')}]`);
     const room = rooms.get(roomCode.toUpperCase());
     if (!room) { socket.emit('error', { message: 'Room not found' }); return; }
     if (room.state !== 'lobby') { socket.emit('error', { message: 'Game already in progress' }); return; }
@@ -123,13 +115,12 @@ io.on('connection', (socket) => {
     if (!room.topic) { socket.emit('error', { message: 'Please select a topic' }); return; }
 
     try {
-      // Synchronously grab a word and hint from your local bank
       const { word, hint } = getRandomWord(
-        room.topic, 
-        room.difficulty as 'Easy' | 'Medium' | 'Hard', 
+        room.topic,
+        room.difficulty as 'Easy' | 'Medium' | 'Hard',
         room.usedWords || []
       );
-      
+
       room.word = word;
       room.hint = hint;
       room.imposterId = pickImposter(room.players);
@@ -179,7 +170,6 @@ io.on('connection', (socket) => {
     room.imposterId = '';
     room.topic = '';
     room.difficulty = 'Medium';
-    // Keep usedWords to avoid repeats across rounds
     io.to(roomCode).emit('room_updated', { room });
     io.to(roomCode).emit('reset_game');
   });
@@ -201,13 +191,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-
-// Keep-alive ping to prevent Render free tier spin-down
-setInterval(async () => {
-  try {
-    await fetch(`http://localhost:${PORT}/api/health`)
-  } catch {}
-}, 14 * 60 * 1000) // ping every 14 minutes
 
 httpServer.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`Game server running on port ${PORT}`);
